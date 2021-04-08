@@ -535,6 +535,13 @@ class AlExperiment:
                     select_ind = self._query_function.select(
                         Lcollection, Ucollection, batch_size=self._batch_size
                     )
+            elif "model" in inspect.getfullargspec(self._query_function.select)[0]:
+                select_ind = self._query_function.select(
+                    Lcollection,
+                    Ucollection,
+                    batch_size=self._batch_size,
+                    model=self._model,
+                )
             else:
                 select_ind = self._query_function.select(
                     Lcollection,
