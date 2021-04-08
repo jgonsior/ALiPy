@@ -11,40 +11,40 @@ from __future__ import division
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.stats import rankdata
-from sklearn.metrics import f1_score
- 
+import sklearn
+
+
 __all__ = [
-    'accuracy_score',
-    'zero_one_loss',
-    'roc_auc_score',
-    'get_fps_tps_thresholds',
-    'f1_score',
-    'hamming_loss',
-    'one_error',
-    'coverage_error',
-    'label_ranking_loss',
-    'label_ranking_average_precision_score',
-    'micro_auc_score',
-    'average_precision_score'
+    "accuracy_score",
+    "zero_one_loss",
+    "roc_auc_score",
+    "get_fps_tps_thresholds",
+    "f1_score",
+    "hamming_loss",
+    "one_error",
+    "coverage_error",
+    "label_ranking_loss",
+    "label_ranking_average_precision_score",
+    "micro_auc_score",
+    "average_precision_score",
 ]
 
 
 def _num_samples(x):
     """Return number of samples in array-like x."""
-    if hasattr(x, 'fit') and callable(x.fit):
+    if hasattr(x, "fit") and callable(x.fit):
         # Don't get num_samples from an ensembles length!
-        raise TypeError('Expected sequence or array-like, got '
-                        'estimator %s' % x)
-    if not hasattr(x, '__len__') and not hasattr(x, 'shape'):
-        if hasattr(x, '__array__'):
+        raise TypeError("Expected sequence or array-like, got " "estimator %s" % x)
+    if not hasattr(x, "__len__") and not hasattr(x, "shape"):
+        if hasattr(x, "__array__"):
             x = np.asarray(x)
         else:
-            raise TypeError("Expected sequence or array-like, got %s" %
-                            type(x))
-    if hasattr(x, 'shape'):
+            raise TypeError("Expected sequence or array-like, got %s" % type(x))
+    if hasattr(x, "shape"):
         if len(x.shape) == 0:
-            raise TypeError("Singleton array %r cannot be considered"
-                            " a valid collection." % x)
+            raise TypeError(
+                "Singleton array %r cannot be considered" " a valid collection." % x
+            )
         return x.shape[0]
     else:
         return len(x)
@@ -52,28 +52,29 @@ def _num_samples(x):
 
 def check_consistent_length(*arrays):
     """
-        Check that all arrays have consistent first dimensions.
+    Check that all arrays have consistent first dimensions.
     """
     lengths = [_num_samples(X) for X in arrays if X is not None]
     uniques = np.unique(lengths)
     if len(uniques) > 1:
-        raise ValueError("Found input variables with inconsistent numbers of"
-                         " samples: %r" % [int(l) for l in lengths])
+        raise ValueError(
+            "Found input variables with inconsistent numbers of"
+            " samples: %r" % [int(l) for l in lengths]
+        )
 
 
 def type_of_target(y):
-    """Determine the type of data indicated by the target.
-    """
+    """Determine the type of data indicated by the target."""
     y = np.asarray(y)
-    if(len(np.unique(y)) <= 2):
-        if(y.ndim >= 2 and len(y[0]) > 1):
-            return 'multilabel'
+    if len(np.unique(y)) <= 2:
+        if y.ndim >= 2 and len(y[0]) > 1:
+            return "multilabel"
         else:
-            return 'binary'
-    elif(len(np.unique(y)) > 2) or (y.ndim >= 2 and len(y[0]) > 1):
-        return 'multiclass'
-    return 'unknown'
-        
+            return "binary"
+    elif (len(np.unique(y)) > 2) or (y.ndim >= 2 and len(y[0]) > 1):
+        return "multiclass"
+    return "unknown"
+
 
 def _auc(x, y, reorder=True):
     """Compute Area Under the Curve (AUC) using the trapezoidal rule
@@ -99,8 +100,10 @@ def _auc(x, y, reorder=True):
     check_consistent_length(x, y)
 
     if x.shape[0] < 2:
-        raise ValueError('At least 2 points are needed to compute'
-                         ' area under curve, but x.shape = %s' % x.shape)
+        raise ValueError(
+            "At least 2 points are needed to compute"
+            " area under curve, but x.shape = %s" % x.shape
+        )
 
     direction = 1
     if reorder is True:
@@ -114,8 +117,9 @@ def _auc(x, y, reorder=True):
             if np.all(dx <= 0):
                 direction = -1
             else:
-                raise ValueError("x is neither increasing nor decreasing "
-                                 ": {}.".format(x))
+                raise ValueError(
+                    "x is neither increasing nor decreasing " ": {}.".format(x)
+                )
 
     area = direction * np.trapz(y, x)
     if isinstance(area, np.memmap):
@@ -125,7 +129,7 @@ def _auc(x, y, reorder=True):
         area = area.dtype.type(area)
     return area
 
-    
+
 def _check_targets(y_true, y_pred):
     """Check that y_true and y_pred belong to the same classification task
 
@@ -162,18 +166,20 @@ def _check_targets(y_true, y_pred):
         y_type = set(["multiclass"])
 
     if len(y_type) > 1:
-        raise ValueError("Classification metrics can't handle a mix of {0} "
-                         "and {1} targets".format(type_true, type_pred))
+        raise ValueError(
+            "Classification metrics can't handle a mix of {0} "
+            "and {1} targets".format(type_true, type_pred)
+        )
 
     # We can't have more than one value on y_type => The set is no more needed
     y_type = y_type.pop()
 
     # No metrics support "multiclass-multioutput" format
-    if (y_type not in ["binary", "multiclass", "multilabel"]):
+    if y_type not in ["binary", "multiclass", "multilabel"]:
         raise ValueError("{0} is not supported".format(y_type))
 
     if y_type in ["binary", "multiclass"]:
-        #Ravel column or 1d numpy array
+        # Ravel column or 1d numpy array
         y_true = np.ravel(y_true)
         y_pred = np.ravel(y_pred)
         if y_type == "binary":
@@ -181,10 +187,10 @@ def _check_targets(y_true, y_pred):
             if len(unique_values) > 2:
                 y_type = "multiclass"
 
-    if y_type.startswith('multilabel'):
+    if y_type.startswith("multilabel"):
         y_true = csr_matrix(y_true)
         y_pred = csr_matrix(y_pred)
-        y_type = 'multilabel'
+        y_type = "multilabel"
 
     return y_type, y_true, y_pred
 
@@ -210,8 +216,8 @@ def accuracy_score(y_true, y_pred, sample_weight=None):
     y_type, y_true, y_pred = _check_targets(y_true, y_pred)
     check_consistent_length(y_true, y_pred, sample_weight)
 
-    if y_type.startswith('multilabel'):
-    
+    if y_type.startswith("multilabel"):
+
         differing_labels = np.diff((y_true - y_pred).indptr)
         score = differing_labels == 0
     else:
@@ -249,7 +255,7 @@ def zero_one_loss(y_true, y_pred, normalize=True, sample_weight=None):
         If ``normalize == True``, return the fraction of misclassifications
         (float), else it returns the number of misclassifications (int).
     """
-    score = accuracy_score(y_true, y_pred,sample_weight=sample_weight)
+    score = accuracy_score(y_true, y_pred, sample_weight=sample_weight)
 
     if normalize:
         return 1 - score
@@ -295,8 +301,33 @@ def zero_one_loss(y_true, y_pred, normalize=True, sample_weight=None):
 #     return 2 * (p * r) / (p + r)
 
 
+def f1_score(y_true, y_pred, pos_label=1, sample_weight=None):
+    """
+        Compute the F1 score, also known as balanced F-score or F-measure
+    The F1 score can be interpreted as a weighted average of the precision and
+    recall, where an F1 score reaches its best value at 1 and worst score at 0.
+    The relative contribution of precision and recall to the F1 score are
+    equal. The formula for the F1 score is::
+        F1 = 2 * (precision * recall) / (precision + recall)
+    Parameters
+    ----------
+    y_true : 1d array-like, or label indicator array / sparse matrix
+        Ground truth (correct) target values.
+    y_pred : 1d array-like, or label indicator array / sparse matrix
+        Estimated targets as returned by a classifier.
+    sample_weight : array-like of shape = [n_samples], optional
+        Sample weights.
+    Returns
+    -------
+    f1_score : float or array of float, shape = [n_unique_labels]
+    """
+    return sklearn.metrics.f1_score(y_true, y_pred, average="weighted", zero_division=0)
+
+    # return 2 * (p * r) / (p + r)
+
+
 def get_fps_tps_thresholds(y_true, y_score, pos_label=None):
-    '''
+    """
     Calculate true and false positives per binary classification threshold.
 
     Parameters
@@ -329,25 +360,26 @@ def get_fps_tps_thresholds(y_true, y_score, pos_label=None):
 
     thresholds : array, shape = [n_thresholds]
         Decreasing score values.
-    '''
+    """
     check_consistent_length(y_true, y_score)
     classes = np.unique(y_true)
-    if (pos_label is None and
-        not (np.array_equal(classes, [0, 1]) or
-             np.array_equal(classes, [-1, 1]) or
-             np.array_equal(classes, [0]) or
-             np.array_equal(classes, [-1]) or
-             np.array_equal(classes, [1]))):
+    if pos_label is None and not (
+        np.array_equal(classes, [0, 1])
+        or np.array_equal(classes, [-1, 1])
+        or np.array_equal(classes, [0])
+        or np.array_equal(classes, [-1])
+        or np.array_equal(classes, [1])
+    ):
         raise ValueError("Data is not binary and pos_label is not specified")
     elif pos_label is None:
-        pos_label = 1.
-    y_true = (y_true == pos_label)
+        pos_label = 1.0
+    y_true = y_true == pos_label
     desc_score_indices = np.argsort(y_score, kind="mergesort")[::-1]
     thresholds = np.array(y_score)[desc_score_indices]
     y_true = np.array(y_true)[desc_score_indices]
     y_score = np.array(y_score)[desc_score_indices]
     tps = []
-    fps = [] 
+    fps = []
     for threshold in thresholds:
         y_prob = [1 if i >= threshold else 0 for i in y_score]
         result = [i == j for i, j in zip(y_true, y_prob)]
@@ -359,9 +391,8 @@ def get_fps_tps_thresholds(y_true, y_score, pos_label=None):
     return np.array(fps), np.array(tps), thresholds
 
 
-def precision_recall_curve(y_true, y_score, pos_label=None,
-                           sample_weight=None):
-    '''
+def precision_recall_curve(y_true, y_score, pos_label=None, sample_weight=None):
+    """
     Compute precision-recall pairs for different probability thresholds
 
     Parameters
@@ -391,7 +422,7 @@ def precision_recall_curve(y_true, y_score, pos_label=None,
     thresholds : array, shape = [n_thresholds <= len(np.unique(probas_pred))]
         Increasing thresholds on the decision function used to compute
         precision and recall.
-    '''
+    """
     fps, tps, thresholds = get_fps_tps_thresholds(y_true, y_score, pos_label=pos_label)
 
     precision = tps / (tps + fps)
@@ -403,7 +434,7 @@ def precision_recall_curve(y_true, y_score, pos_label=None,
 
 
 def roc_curve(y_true, y_score, pos_label=None, sample_weight=None):
-    '''Compute Receiver operating characteristic (ROC)
+    """Compute Receiver operating characteristic (ROC)
 
     Parameters
     ----------
@@ -437,7 +468,7 @@ def roc_curve(y_true, y_score, pos_label=None, sample_weight=None):
         Decreasing thresholds on the decision function used to compute
         fpr and tpr. `thresholds[0]` represents no instances being predicted
         and is arbitrarily set to `max(y_score) + 1`.
-    '''
+    """
     fps, tps, thresholds = get_fps_tps_thresholds(y_true, y_score, pos_label=pos_label)
 
     if np.array(tps).size == 0 or fps[0] != 0 or tps[0] != 0:
@@ -448,13 +479,17 @@ def roc_curve(y_true, y_score, pos_label=None, sample_weight=None):
         thresholds = np.r_[thresholds[0] + 1, thresholds]
 
     if fps[-1] <= 0:
-        raise ValueError("No negative samples in y_true,false positive value should be meaningless")
+        raise ValueError(
+            "No negative samples in y_true,false positive value should be meaningless"
+        )
         fpr = np.repeat(np.nan, fps.shape)
     else:
         fpr = fps / fps[-1]
 
     if tps[-1] <= 0:
-        raise ValueError("No positive samples in y_true,true positive value should be meaningless")
+        raise ValueError(
+            "No positive samples in y_true,true positive value should be meaningless"
+        )
         tpr = np.repeat(np.nan, tps.shape)
     else:
         tpr = tps / tps[-1]
@@ -486,7 +521,7 @@ def roc_auc_score(y_true, y_score, pos_label=None, sample_weight=None):
     auc : float
     """
     fpr, tpr, _ = roc_curve(y_true, y_score, pos_label=pos_label, sample_weight=None)
-    return _auc(fpr, tpr)    
+    return _auc(fpr, tpr)
 
 
 def hamming_loss(y_true, y_pred):
@@ -518,7 +553,7 @@ def hamming_loss(y_true, y_pred):
     check_consistent_length(y_true, y_pred)
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
-    if y_type.startswith('multilabel'):
+    if y_type.startswith("multilabel"):
         num_samples, num_classses = np.array(y_true).shape
         n_differences = np.sum(y_true != y_pred)
         return n_differences / (num_samples * num_classses)
@@ -529,7 +564,7 @@ def hamming_loss(y_true, y_pred):
 
 
 def one_error(y_true, y_pred, sample_weight=None):
-    '''
+    """
         Compute the one_error,similar to 0/1-loss.
     Parameters
     ----------
@@ -547,7 +582,7 @@ def one_error(y_true, y_pred, sample_weight=None):
     Returns
     -------
     one_error : float
-    '''
+    """
     check_consistent_length(y_true, y_pred, sample_weight)
     y_type = type_of_target(y_true)
     n_samples, n_labels = y_true.shape
@@ -597,7 +632,7 @@ def coverage_error(y_true, y_score, sample_weight=None):
 
 def label_ranking_loss(y_true, y_score, sample_weight=None):
     """Compute Ranking loss measure.
-    
+
     Compute the average number of label pairs that are incorrectly ordered
     given y_score weighted by the size of the label set and the number of
     labels not in the label set.
@@ -641,29 +676,26 @@ def label_ranking_loss(y_true, y_score, sample_weight=None):
     loss = np.zeros(n_samples)
     for i, (start, stop) in enumerate(zip(y_true.indptr, y_true.indptr[1:])):
         # Sort and bin the label scores
-        unique_scores, unique_inverse = np.unique(y_score[i],
-                                                  return_inverse=True)
+        unique_scores, unique_inverse = np.unique(y_score[i], return_inverse=True)
         true_at_reversed_rank = np.bincount(
-            unique_inverse[y_true.indices[start:stop]],
-            minlength=len(unique_scores))
-        all_at_reversed_rank = np.bincount(unique_inverse,
-                                        minlength=len(unique_scores))
+            unique_inverse[y_true.indices[start:stop]], minlength=len(unique_scores)
+        )
+        all_at_reversed_rank = np.bincount(unique_inverse, minlength=len(unique_scores))
         false_at_reversed_rank = all_at_reversed_rank - true_at_reversed_rank
 
         # if the scores are ordered, it's possible to count the number of
         # incorrectly ordered paires in linear time by cumulatively counting
         # how many false _labels of a given score have a score higher than the
         # accumulated true _labels with lower score.
-        loss[i] = np.dot(true_at_reversed_rank.cumsum(),
-                         false_at_reversed_rank)
+        loss[i] = np.dot(true_at_reversed_rank.cumsum(), false_at_reversed_rank)
 
     n_positives = np.diff(y_true.indptr)
     with np.errstate(divide="ignore", invalid="ignore"):
-        loss /= ((n_labels - n_positives) * n_positives)
+        loss /= (n_labels - n_positives) * n_positives
 
     # When there is no positive or no negative _labels, those values should
     # be consider as correct, i.e. the ranking doesn't matter.
-    loss[np.logical_or(n_positives == 0, n_positives == n_labels)] = 0.
+    loss[np.logical_or(n_positives == 0, n_positives == n_labels)] = 0.0
 
     return np.average(loss, weights=sample_weight)
 
@@ -696,8 +728,7 @@ def label_ranking_average_precision_score(y_true, y_score, sample_weight=None):
 
     # Handle badly formatted array and the degenerate case with one label
     y_type = type_of_target(y_true)
-    if (y_type != "multilabel" and
-            not (y_type == "binary" and y_true.ndim == 2)):
+    if y_type != "multilabel" and not (y_type == "binary" and y_true.ndim == 2):
         raise ValueError("{0} format is not supported".format(y_type))
 
     y_true = csr_matrix(y_true)
@@ -705,19 +736,19 @@ def label_ranking_average_precision_score(y_true, y_score, sample_weight=None):
 
     n_samples, n_labels = y_true.shape
 
-    out = 0.
+    out = 0.0
     for i, (start, stop) in enumerate(zip(y_true.indptr, y_true.indptr[1:])):
         relevant = y_true.indices[start:stop]
 
-        if (relevant.size == 0 or relevant.size == n_labels):
+        if relevant.size == 0 or relevant.size == n_labels:
             # If all labels are relevant or unrelevant, the score is also
             # equal to 1. The label ranking has no meaning.
-            out += 1.
+            out += 1.0
             continue
 
         scores_i = y_score[i]
-        rank = rankdata(scores_i, 'max')[relevant]
-        L = rankdata(scores_i[relevant], 'max')
+        rank = rankdata(scores_i, "max")[relevant]
+        L = rankdata(scores_i[relevant], "max")
         aux = (L / rank).mean()
         if sample_weight is not None:
             aux = aux * sample_weight[i]
@@ -743,7 +774,7 @@ def find(instance, label1, label2):
 
 
 def findmax(outputs):
-    Max = -float("inf")    
+    Max = -float("inf")
     index = 0
     for i in range(outputs.shape[0]):
         if outputs[i] > Max:
@@ -763,7 +794,7 @@ def sort(x):
         for j in range(length):
             if temp[j] < Min:
                 Min = temp[j]
-                Min_j = j        
+                Min_j = j
         sortX.append(Min)
         index.append(Min_j)
         temp[Min_j] = float("inf")
@@ -775,7 +806,7 @@ def findIndex(a, b):
         if a == b[i]:
             return i
 
-   
+
 def micro_auc_score(y_true, y_score, sample_weight=None):
     """
     Compute the micro_auc_score.
@@ -803,8 +834,7 @@ def micro_auc_score(y_true, y_score, sample_weight=None):
 
     # Handle badly formatted array and the degenerate case with one label
     y_type = type_of_target(y_true)
-    if (y_type != "multilabel" and
-            not (y_type == "binary" and y_true.ndim == 2)):
+    if y_type != "multilabel" and not (y_type == "binary" and y_true.ndim == 2):
         raise ValueError("{0} format is not supported".format(y_type))
 
     test_data_num = y_score.shape[0]
@@ -817,18 +847,18 @@ def micro_auc_score(y_true, y_score, sample_weight=None):
     for i in range(class_num):
         P.append([])
         N.append([])
-    
+
     for i in range(test_data_num):
-            for j in range(class_num):
-                if y_true[i][j] == 1:
-                    P[j].append(i)
-                else:
-                    N[j].append(i)
-    
+        for j in range(class_num):
+            if y_true[i][j] == 1:
+                P[j].append(i)
+            else:
+                N[j].append(i)
+
     for i in range(class_num):
         labels_size.append(len(P[i]))
         not_labels_size.append(len(N[i]))
-    
+
     for i in range(class_num):
         auc = 0
         for j in range(labels_size[i]):
@@ -837,8 +867,8 @@ def micro_auc_score(y_true, y_score, sample_weight=None):
                 neg = y_score[N[i][k]][i]
                 if pos > neg:
                     auc = auc + 1
-        AUC = AUC + auc*1.0/(labels_size[i]*not_labels_size[i])
-    return AUC*1.0/class_num
+        AUC = AUC + auc * 1.0 / (labels_size[i] * not_labels_size[i])
+    return AUC * 1.0 / class_num
 
 
 def average_precision_score(y_true, y_score, sample_weight=None):
@@ -875,8 +905,7 @@ def average_precision_score(y_true, y_score, sample_weight=None):
 
     # Handle badly formatted array and the degenerate case with one label
     y_type = type_of_target(y_true)
-    if (y_type != "multilabel" and
-            not (y_type == "binary" and y_true.ndim == 2)):
+    if y_type != "multilabel" and not (y_type == "binary" and y_true.ndim == 2):
         raise ValueError("{0} format is not supported".format(y_type))
 
     test_data_num = y_score.shape[0]
@@ -893,20 +922,20 @@ def average_precision_score(y_true, y_score, sample_weight=None):
             temp_outputs.append(y_score[i])
             temp_test_target.append(y_true[i])
             labels_size.append(sum(y_true[i] == 1))
-            index1, index2 = find(y_true[i], 1, 0)            
+            index1, index2 = find(y_true[i], 1, 0)
             labels_index.append(index1)
             not_labels_index.append(index2)
-    
+
     aveprec = 0
     for i in range(instance_num):
         tempvalue, index = sort(temp_outputs[i])
-        indicator = np.zeros((class_num,))     
+        indicator = np.zeros((class_num,))
         for j in range(labels_size[i]):
             loc = findIndex(labels_index[i][j], index)
             indicator[loc] = 1
         summary = 0
         for j in range(labels_size[i]):
             loc = findIndex(labels_index[i][j], index)
-            summary = summary + sum(indicator[loc:class_num])*1.0/(class_num-loc)
-        aveprec = aveprec + summary*1.0/labels_size[i]
-    return aveprec*1.0/test_data_num
+            summary = summary + sum(indicator[loc:class_num]) * 1.0 / (class_num - loc)
+        aveprec = aveprec + summary * 1.0 / labels_size[i]
+    return aveprec * 1.0 / test_data_num

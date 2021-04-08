@@ -15,9 +15,17 @@ import inspect
 from sklearn.linear_model import LogisticRegression
 from sklearn.utils import check_X_y
 
-from alipy.query_strategy.query_labels import QueryInstanceQBC, \
-    QueryInstanceUncertainty, QueryInstanceRandom, QueryInstanceQUIRE, \
-    QueryInstanceGraphDensity, QueryInstanceBMDR, QueryInstanceSPAL, QueryInstanceLAL, QueryExpectedErrorReduction
+from alipy.query_strategy.query_labels import (
+    QueryInstanceQBC,
+    QueryInstanceUncertainty,
+    QueryInstanceRandom,
+    QueryInstanceQUIRE,
+    QueryInstanceGraphDensity,
+    QueryInstanceBMDR,
+    QueryInstanceSPAL,
+    QueryInstanceLAL,
+    QueryExpectedErrorReduction,
+)
 from ..data_manipulate.al_split import split
 from .experiment_analyser import ExperimentAnalyser
 from .state import State
@@ -27,8 +35,9 @@ from ..index.index_collections import IndexCollection
 from ..utils.multi_thread import aceThreading
 from ..metrics import performance
 
-__all__ = ['AlExperiment',
-           ]
+__all__ = [
+    "AlExperiment",
+]
 
 
 class AlExperiment:
@@ -86,8 +95,17 @@ class AlExperiment:
         index of unlabeling set, shape like [n_split_count, n_unlabeling_indexes]
     """
 
-    def __init__(self, X, y, model=LogisticRegression(solver='liblinear'), performance_metric='accuracy_score',
-                 stopping_criteria=None, stopping_value=None, batch_size=1, **kwargs):
+    def __init__(
+        self,
+        X,
+        y,
+        model=LogisticRegression(solver="liblinear"),
+        performance_metric="accuracy_score",
+        stopping_criteria=None,
+        stopping_value=None,
+        batch_size=1,
+        **kwargs
+    ):
         self.__custom_strategy_flag = False
         self._split = False
         self._metrics = False
@@ -95,18 +113,27 @@ class AlExperiment:
         self._query_function_need_train_ind = False
         self._existed_query_strategy = False
 
-        self._X, self._y = check_X_y(X, y, accept_sparse='csc', multi_output=True)
+        self._X, self._y = check_X_y(X, y, accept_sparse="csc", multi_output=True)
         self._model = model
         self._experiment_result = []
         # set split in the initial
-        train_idx = kwargs.pop('train_idx', None)
-        test_idx = kwargs.pop('test_idx', None)
-        label_idx = kwargs.pop('label_idx', None)
-        unlabel_idx = kwargs.pop('unlabel_idx', None)
-        if train_idx is not None and test_idx is not None and label_idx is not None and unlabel_idx is not None:
-            if not (len(train_idx) == len(test_idx) == len(label_idx) == len(unlabel_idx)):
-                raise ValueError("train_idx, test_idx, label_idx, unlabel_idx "
-                                 "should have the same split count (length)")
+        train_idx = kwargs.pop("train_idx", None)
+        test_idx = kwargs.pop("test_idx", None)
+        label_idx = kwargs.pop("label_idx", None)
+        unlabel_idx = kwargs.pop("unlabel_idx", None)
+        if (
+            train_idx is not None
+            and test_idx is not None
+            and label_idx is not None
+            and unlabel_idx is not None
+        ):
+            if not (
+                len(train_idx) == len(test_idx) == len(label_idx) == len(unlabel_idx)
+            ):
+                raise ValueError(
+                    "train_idx, test_idx, label_idx, unlabel_idx "
+                    "should have the same split count (length)"
+                )
             self._split = True
             self._train_idx = train_idx
             self._test_idx = test_idx
@@ -137,91 +164,133 @@ class AlExperiment:
             Note that, each parameters should be static.
             The parameters will be fed to the callable object automatically.
         """
-        # check 
+        # check
         if self._existed_query_strategy:
-            raise Exception("You already has set the query strategy,don`t has to set it again.")
+            raise Exception(
+                "You already has set the query strategy,don`t has to set it again."
+            )
         # user-defined strategy
         if callable(strategy):
             self.__custom_strategy_flag = True
-            strategyname = kwargs.pop('strategyname', None)
+            strategyname = kwargs.pop("strategyname", None)
             if strategyname is not None:
                 self._query_function_name = strategyname
             else:
-                self._query_function_name = 'user-defined strategy'
+                self._query_function_name = "user-defined strategy"
             self.__custom_func_arg = kwargs
             self._query_function = strategy(self._X, self._y, **kwargs)
         else:
             # a pre-defined strategy in ALiPy
-            if strategy not in ['QueryInstanceQBC', 'QueryInstanceUncertainty', 'QueryRandom', 'QueryInstanceRandom',
-                                'QueryInstanceGraphDensity', 'QueryInstanceQUIRE',
-                                'QueryInstanceBMDR', 'QueryInstanceSPAL', 'QueryInstanceLAL',
-                                'QueryExpectedErrorReduction']:
-                raise NotImplementedError('Strategy {} is not implemented. Specify a valid '
-                                          'method name or privide a callable object.'.format(str(strategy)))
+            if strategy not in [
+                "QueryInstanceQBC",
+                "QueryInstanceUncertainty",
+                "QueryRandom",
+                "QueryInstanceRandom",
+                "QueryInstanceGraphDensity",
+                "QueryInstanceQUIRE",
+                "QueryInstanceBMDR",
+                "QueryInstanceSPAL",
+                "QueryInstanceLAL",
+                "QueryExpectedErrorReduction",
+            ]:
+                raise NotImplementedError(
+                    "Strategy {} is not implemented. Specify a valid "
+                    "method name or privide a callable object.".format(str(strategy))
+                )
             else:
                 self._query_function_name = strategy
-                if strategy == 'QueryInstanceQBC':
-                    method = kwargs.pop('method', 'query_by_bagging')
-                    disagreement = kwargs.pop('disagreement', 'vote_entropy')
-                    self._query_function = QueryInstanceQBC(self._X, self._y, method, disagreement)
-                elif strategy == 'QueryInstanceUncertainty':
-                    measure = kwargs.pop('measure', 'entropy')
-                    self._query_function = QueryInstanceUncertainty(self._X, self._y, measure)
-                elif strategy == 'QueryInstanceRandom' or strategy == 'QueryRandom':
+                if strategy == "QueryInstanceQBC":
+                    method = kwargs.pop("method", "query_by_bagging")
+                    disagreement = kwargs.pop("disagreement", "vote_entropy")
+                    self._query_function = QueryInstanceQBC(
+                        self._X, self._y, method, disagreement
+                    )
+                elif strategy == "QueryInstanceUncertainty":
+                    measure = kwargs.pop("measure", "entropy")
+                    self._query_function = QueryInstanceUncertainty(
+                        self._X, self._y, measure
+                    )
+                elif strategy == "QueryInstanceRandom" or strategy == "QueryRandom":
                     self._query_function = QueryInstanceRandom(self._X, self._y)
-                elif strategy == 'QueryExpectedErrorReduction':
+                elif strategy == "QueryExpectedErrorReduction":
                     self._query_function = QueryExpectedErrorReduction(self._X, self._y)
-                elif strategy == 'QueryInstanceGraphDensity' or strategy == 'QueryInstanceQUIRE':
+                elif (
+                    strategy == "QueryInstanceGraphDensity"
+                    or strategy == "QueryInstanceQUIRE"
+                ):
                     if self._train_idx is None:
                         raise ValueError(
-                            'train_idx is None.Please split data firstly.You can call set_data_split or split_AL to split data.')
+                            "train_idx is None.Please split data firstly.You can call set_data_split or split_AL to split data."
+                        )
                     self._query_function_need_train_ind = True
-                    self._query_function_metric = kwargs.pop('metric', 'manhattan')
+                    self._query_function_metric = kwargs.pop("metric", "manhattan")
                     self._query_function_kwargs = kwargs
-                elif strategy == 'QueryInstanceBMDR':
-                    beta = kwargs.pop('beta', 1000)
-                    gamma = kwargs.pop('gamma', 0.1)
-                    rho = kwargs.pop('rho', 1)
-                    self._query_function = QueryInstanceBMDR(self._X, self._y, beta, gamma, rho, **kwargs)
-                    self.qp_solver = kwargs.pop('qp_sover', 'ECOS')
-                elif strategy == 'QueryInstanceSPAL':
-                    mu = kwargs.pop('mu', 0.1)
-                    gamma = kwargs.pop('gamma', 0.1)
-                    rho = kwargs.pop('rho', 1)
-                    lambda_init = kwargs.pop('lambda_init', 0.1)
-                    lambda_pace = kwargs.pop('lambda_pace', 0.01)
-                    self._query_function = QueryInstanceSPAL(self._X, self._y, mu, gamma, rho, lambda_init, lambda_pace,
-                                                             **kwargs)
-                    self.qp_solver = kwargs.pop('qp_sover', 'ECOS')
-                elif strategy == 'QueryInstanceLAL':
-                    mode = kwargs.pop('mode', 'LAL_iterative')
-                    data_path = kwargs.pop('data_path', '.')
-                    cls_est = kwargs.pop('cls_est', 50)
-                    train_slt = kwargs.pop('train_slt', True)
-                    self._query_function = QueryInstanceLAL(self._X, self._y, mode, data_path, cls_est, train_slt,
-                                                            **kwargs)
+                elif strategy == "QueryInstanceBMDR":
+                    beta = kwargs.pop("beta", 1000)
+                    gamma = kwargs.pop("gamma", 0.1)
+                    rho = kwargs.pop("rho", 1)
+                    self._query_function = QueryInstanceBMDR(
+                        self._X, self._y, beta, gamma, rho, **kwargs
+                    )
+                    self.qp_solver = kwargs.pop("qp_sover", "ECOS")
+                elif strategy == "QueryInstanceSPAL":
+                    mu = kwargs.pop("mu", 0.1)
+                    gamma = kwargs.pop("gamma", 0.1)
+                    rho = kwargs.pop("rho", 1)
+                    lambda_init = kwargs.pop("lambda_init", 0.1)
+                    lambda_pace = kwargs.pop("lambda_pace", 0.01)
+                    self._query_function = QueryInstanceSPAL(
+                        self._X,
+                        self._y,
+                        mu,
+                        gamma,
+                        rho,
+                        lambda_init,
+                        lambda_pace,
+                        **kwargs
+                    )
+                    self.qp_solver = kwargs.pop("qp_sover", "ECOS")
+                elif strategy == "QueryInstanceLAL":
+                    mode = kwargs.pop("mode", "LAL_iterative")
+                    data_path = kwargs.pop("data_path", ".")
+                    cls_est = kwargs.pop("cls_est", 50)
+                    train_slt = kwargs.pop("train_slt", True)
+                    self._query_function = QueryInstanceLAL(
+                        self._X, self._y, mode, data_path, cls_est, train_slt, **kwargs
+                    )
 
-    def set_performance_metric(self, performance_metric='accuracy_score', **kwargs):
+    def set_performance_metric(self, performance_metric="accuracy_score", **kwargs):
         """
         Set the metric for experiment.
 
         Parameters
         ------------
-        performace_metric: str 
+        performace_metric: str
             The query performance-metric function.
             Giving str to use a pre-defined performance-metric.
-            
+
         kwargs: dict, optional
             The args used in performance-metric.
             if kwargs is None,the pre-defined performance will init in the default way.
              (See the default way of pre-defined query strategy in the alipy/metric/'performance').
             Note that, each parameters should be static.
-                
+
         """
-        if performance_metric not in ['accuracy_score', 'roc_auc_score', 'get_fps_tps_thresholds', 'hamming_loss',
-                                      'one_error', 'coverage_error',
-                                      'label_ranking_loss', 'label_ranking_average_precision_score', 'zero_one_loss']:
-            raise NotImplementedError('Performance {} is not implemented.'.format(str(performance_metric)))
+        if performance_metric not in [
+            "accuracy_score",
+            "roc_auc_score",
+            "get_fps_tps_thresholds",
+            "hamming_loss",
+            "one_error",
+            "coverage_error",
+            "f1_score",
+            "label_ranking_loss",
+            "label_ranking_average_precision_score",
+            "zero_one_loss",
+        ]:
+            raise NotImplementedError(
+                "Performance {} is not implemented.".format(str(performance_metric))
+            )
 
         self._performance_metric_name = performance_metric
         self._performance_metric = getattr(performance, performance_metric)
@@ -246,8 +315,10 @@ class AlExperiment:
             index of unlabeling set, shape like [n_split_count, n_unlabeling_indexes]
         """
         if not (len(train_idx) == len(test_idx) == len(label_idx) == len(unlabel_idx)):
-            raise ValueError("_train_idx, _test_idx, _label_idx, _unlabel_idx "
-                             "should have the same split count (length)")
+            raise ValueError(
+                "_train_idx, _test_idx, _label_idx, _unlabel_idx "
+                "should have the same split count (length)"
+            )
         self._split = True
         self._train_idx = train_idx
         self._test_idx = test_idx
@@ -255,8 +326,9 @@ class AlExperiment:
         self._unlabel_idx = unlabel_idx
         self._split_count = len(train_idx)
 
-    def split_AL(self, test_ratio=0.3, initial_label_rate=0.05,
-                 split_count=10, all_class=True):
+    def split_AL(
+        self, test_ratio=0.3, initial_label_rate=0.05, split_count=10, all_class=True
+    ):
         """split dataset for active learning experiment.
 
         Parameters
@@ -298,7 +370,8 @@ class AlExperiment:
             test_ratio=test_ratio,
             initial_label_rate=initial_label_rate,
             split_count=split_count,
-            all_class=all_class)
+            all_class=all_class,
+        )
         return self._train_idx, self._test_idx, self._label_idx, self._unlabel_idx
 
     def start_query(self, multi_thread=True, **kwargs):
@@ -317,51 +390,88 @@ class AlExperiment:
             if the kwargs is None,it will init in the default way.
 
             if multi_thread is True,the kwargs will be used for aceThreading init,
-            aceThreading(A class implement multi-threading in active learning for multiple 
+            aceThreading(A class implement multi-threading in active learning for multiple
             random splits experiments.)
             and you can see the specific parameter settings in alipy/utils/'multi_thread.py' init().
 
             if not,the kwargs will be used for stateio init,
             stateio(A class to store states.)
             and you can see the specific parameter settings in alipy/experiment/'state_io.py' init().
-            
+
             Note that, each parameters should be static.
         """
         if not self._split:
-            raise Exception("Data split is unknown. Use set_data_split() to set an existed split, "
-                            "or use split_AL() to generate new split.")
+            raise Exception(
+                "Data split is unknown. Use set_data_split() to set an existed split, "
+                "or use split_AL() to generate new split."
+            )
         if not self._metrics:
-            raise Exception("Performance_Metrics is unknown."
-                            " Use set_performance_metric() to define a performance_metrics.")
+            raise Exception(
+                "Performance_Metrics is unknown."
+                " Use set_performance_metric() to define a performance_metrics."
+            )
 
         if multi_thread:
-            max_thread = kwargs.pop('max_thread', None)
-            refresh_interval = kwargs.pop('refresh_interval', 1.0)
-            saving_path = kwargs.pop('saving_path', '.')
-            ace = aceThreading(self._X, self._y, self._train_idx, self._test_idx,
-                               self._label_idx, self._unlabel_idx, max_thread=max_thread,
-                               refresh_interval=refresh_interval, saving_path=saving_path)
+            max_thread = kwargs.pop("max_thread", None)
+            refresh_interval = kwargs.pop("refresh_interval", 1.0)
+            saving_path = kwargs.pop("saving_path", ".")
+            ace = aceThreading(
+                self._X,
+                self._y,
+                self._train_idx,
+                self._test_idx,
+                self._label_idx,
+                self._unlabel_idx,
+                max_thread=max_thread,
+                refresh_interval=refresh_interval,
+                saving_path=saving_path,
+            )
             ace.set_target_function(self.__al_main_loop)
             ace.start_all_threads()
             self._experiment_result = ace.get_results()
         else:
-            initial_point = kwargs.pop('initial_point', None)
-            saving_path = kwargs.pop('saving_path', None)
-            check_flag = kwargs.pop('check_flag', True)
-            verbose = kwargs.pop('verbose', True)
-            print_interval = kwargs.pop('print_interval', 1)
+            initial_point = kwargs.pop("initial_point", None)
+            saving_path = kwargs.pop("saving_path", None)
+            check_flag = kwargs.pop("check_flag", True)
+            verbose = kwargs.pop("verbose", True)
+            print_interval = kwargs.pop("print_interval", 1)
             for round in range(self._split_count):
-                saver = StateIO(round, self._train_idx[round], self._test_idx[round], self._label_idx[round],
-                                self._unlabel_idx[round], initial_point, saving_path, check_flag, verbose,
-                                print_interval)
-                self.__al_main_loop(round, self._train_idx[round], self._test_idx[round], self._label_idx[round],
-                                    self._unlabel_idx[round], saver)
+                saver = StateIO(
+                    round,
+                    self._train_idx[round],
+                    self._test_idx[round],
+                    self._label_idx[round],
+                    self._unlabel_idx[round],
+                    initial_point,
+                    saving_path,
+                    check_flag,
+                    verbose,
+                    print_interval,
+                )
+                self.__al_main_loop(
+                    round,
+                    self._train_idx[round],
+                    self._test_idx[round],
+                    self._label_idx[round],
+                    self._unlabel_idx[round],
+                    saver,
+                )
                 self._experiment_result.append(copy.deepcopy(saver))
 
-    def __al_main_loop(self, round, train_id, test_id, Lcollection, Ucollection,
-                       saver, examples=None, labels=None, global_parameters=None):
+    def __al_main_loop(
+        self,
+        round,
+        train_id,
+        test_id,
+        Lcollection,
+        Ucollection,
+        saver,
+        examples=None,
+        labels=None,
+        global_parameters=None,
+    ):
         """
-            The active-learning main loop.
+        The active-learning main loop.
         """
         Lcollection = IndexCollection(Lcollection)
         Ucollection = IndexCollection(Ucollection)
@@ -370,44 +480,74 @@ class AlExperiment:
 
         # some query strategy,such as QueryInstanceGraphDensity,QueryInstanceQUIRE, need train_ind
         if self._query_function_need_train_ind:
-            if self._query_function_name == 'QueryInstanceGraphDensity':
+            if self._query_function_name == "QueryInstanceGraphDensity":
                 if self._query_function_metric is not None:
-                    querfunction = QueryInstanceGraphDensity(self._X, self._y, train_id, self._query_function_metric)
+                    querfunction = QueryInstanceGraphDensity(
+                        self._X, self._y, train_id, self._query_function_metric
+                    )
                 else:
                     raise Exception(
-                        "The QueryInstanceGraphDensity need metric.Please input metric in set_query_strategy().")
-            elif self._query_function_name == 'QueryInstanceQUIRE':
-                querfunction = QueryInstanceQUIRE(self._X, self._y, train_id, **self._query_function_kwargs)
+                        "The QueryInstanceGraphDensity need metric.Please input metric in set_query_strategy()."
+                    )
+            elif self._query_function_name == "QueryInstanceQUIRE":
+                querfunction = QueryInstanceQUIRE(
+                    self._X, self._y, train_id, **self._query_function_kwargs
+                )
 
         # performance calc
         perf_result = self._performance_metric(pred, self._y[test_id])
 
-        # stopping-criterion 
+        # stopping-criterion
         stopping_criterion = copy.deepcopy(self._stopping_criterion)
         saver.set_initial_point(perf_result)
 
         while not stopping_criterion.is_stop():
             if not self.__custom_strategy_flag:
-                if self._query_function_name == 'QueryInstanceGraphDensity':
-                    select_ind = querfunction.select(Lcollection, Ucollection, batch_size=self._batch_size,
-                                                     **self._query_function_kwargs)
-                elif self._query_function_name == 'QueryInstanceQUIRE':
-                    select_ind = querfunction.select(Lcollection, Ucollection, batch_size=self._batch_size)
-                elif 'model' in inspect.getfullargspec(self._query_function.select)[0]:
-                    select_ind = self._query_function.select(Lcollection, Ucollection, batch_size=self._batch_size,
-                                                             model=self._model)
-                elif self._query_function_name == 'QueryInstanceBMDR' or self._query_function_name == 'QueryInstanceSPAL':
-                    select_ind = self._query_function.select(Lcollection, Ucollection, batch_size=self._batch_size,
-                                                             qp_solver=self.qp_solver)
+                if self._query_function_name == "QueryInstanceGraphDensity":
+                    select_ind = querfunction.select(
+                        Lcollection,
+                        Ucollection,
+                        batch_size=self._batch_size,
+                        **self._query_function_kwargs
+                    )
+                elif self._query_function_name == "QueryInstanceQUIRE":
+                    select_ind = querfunction.select(
+                        Lcollection, Ucollection, batch_size=self._batch_size
+                    )
+                elif "model" in inspect.getfullargspec(self._query_function.select)[0]:
+                    select_ind = self._query_function.select(
+                        Lcollection,
+                        Ucollection,
+                        batch_size=self._batch_size,
+                        model=self._model,
+                    )
+                elif (
+                    self._query_function_name == "QueryInstanceBMDR"
+                    or self._query_function_name == "QueryInstanceSPAL"
+                ):
+                    select_ind = self._query_function.select(
+                        Lcollection,
+                        Ucollection,
+                        batch_size=self._batch_size,
+                        qp_solver=self.qp_solver,
+                    )
                 else:
-                    select_ind = self._query_function.select(Lcollection, Ucollection, batch_size=self._batch_size)
+                    select_ind = self._query_function.select(
+                        Lcollection, Ucollection, batch_size=self._batch_size
+                    )
             else:
-                select_ind = self._query_function.select(Lcollection, Ucollection, batch_size=self._batch_size,
-                                                         **self.__custom_func_arg)
+                select_ind = self._query_function.select(
+                    Lcollection,
+                    Ucollection,
+                    batch_size=self._batch_size,
+                    **self.__custom_func_arg
+                )
             Lcollection.update(select_ind)
             Ucollection.difference_update(select_ind)
             # update model
-            self._model.fit(X=self._X[Lcollection.index, :], y=self._y[Lcollection.index])
+            self._model.fit(
+                X=self._X[Lcollection.index, :], y=self._y[Lcollection.index]
+            )
             pred = self._model.predict(self._X[test_id, :])
 
             # performance calc
@@ -431,7 +571,9 @@ class AlExperiment:
             return the stateIO of the experiment.
         """
         if len(self._experiment_result) == 0:
-            raise Exception('There is no experiment result.Use start_query() get experiment result firstly.')
+            raise Exception(
+                "There is no experiment result.Use start_query() get experiment result firstly."
+            )
         return copy.deepcopy(self._experiment_result)
 
     def plot_learning_curve(self, title=None):
@@ -444,7 +586,9 @@ class AlExperiment:
             the title of the line chart.
         """
         if len(self._experiment_result) == 0:
-            raise Exception('There is no experiment result.Use start_query() get experiment result firstly.')
+            raise Exception(
+                "There is no experiment result.Use start_query() get experiment result firstly."
+            )
         ea = ExperimentAnalyser()
         ea.add_method(self._query_function_name, self._experiment_result)
         print(ea)
